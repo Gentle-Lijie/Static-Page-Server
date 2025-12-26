@@ -5,7 +5,7 @@ dist/
 dist-*/
 public/dist/
 /.vite
-.env
+# .env
 .env.*
 local_static/
 /tmp/www_static/
