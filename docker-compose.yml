@@ -1,0 +1,35 @@
+version: '3.9'
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    environment:
+      - CI=true
+      - NODE_ENV=production
+    volumes:
+      - ./:/workspace
+      - ${HOST_STATIC_ROOT:-/WWW_ROOT/static}:/host_static
+    command: >
+      sh -c "pnpm install --prefer-frozen-lockfile || pnpm install && pnpm build && rsync -a --delete --exclude 'pages/' dist/ /host_static/"
+
+  upload:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    environment:
+      - NODE_ENV=production
+      - HOST_STATIC_ROOT=/host_static
+      - PAGES_DIR=/host_static/pages
+      - UPLOAD_PASSWORD=${UPLOAD_PASSWORD:-change-me}
+      - UPLOAD_PORT=${UPLOAD_PORT:-8787}
+      - BASE_URL=${BASE_URL:-https://pages.lijie.space/}
+      - SKIP_BUILD=1
+    volumes:
+      - ./:/workspace
+      - ${HOST_STATIC_ROOT:-/WWW_ROOT/static}:/host_static
+    ports:
+      - "${UPLOAD_PORT:-8787}:8787"
+    command: ["node", "./scripts/upload-server.mjs"]
