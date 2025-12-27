@@ -1,5 +1,12 @@
 [
   {
+    "url": "https://pages.lijie.space/StaticLanding.html",
+    "title": "一种静态网页部署平台",
+    "description": "本文介绍了一个基于Vue 3 + Vite和Express + Multer的静态网页部署平台，支持前端页面索引、搜索、排序、编辑、删除和重建，以及基于Express的上传服务，提供上传、本地登记、删除、编辑和重建等接口，支持密码鉴权和Docker内构建。平台还集成了AI摘要功能，可调用OpenAI接口生成描述。后端通过Docker多服务架构实现前端打包和上传API服务，并支持手动构建和跳过构建。环境变量包括上传密码、端口、静态根目录等，并提供了开发与运行的详细步骤和安全最佳实践。",
+    "image": "https://p.ipic.vip/rbm7xf.png",
+    "created_at": "2025-12-27T19:22:13.513Z"
+  },
+  {
     "url": "https://pages.lijie.space/markdown_intro.html",
     "title": "如何优雅地使用 Markdown",
     "description": "本文介绍了Markdown的入门教程，包括其定义、学习优势、常见用途、编辑器推荐、基础语法和扩展语法。Markdown是一种轻量级标记语言，可转换为HTML文档，适合笔记、文档、博客、演示文稿等。推荐使用Typora和Visual Studio Code等编辑器，并提供了Markdown的标题、文本修饰、列表、引用、代码块、表格、链接与图片、脚注等基础语法和数学公式、流程图等扩展语法的使用方法。同时，也提醒了不同平台对Markdown的支持情况可能不同，并给出了Markdown的官方文档和GitHub指南等参考资料。",

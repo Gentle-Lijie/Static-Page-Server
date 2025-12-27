@@ -7,6 +7,15 @@
             </div>
             <p v-if="message" class="meta" style="margin: 0 0 12px;">{{ message }}</p>
             <form @submit.prevent="submit">
+                <label class="sr-only" for="auth-username">用户名</label>
+                <input
+                    id="auth-username"
+                    name="username"
+                    type="text"
+                    autocomplete="username"
+                    class="sr-only"
+                    aria-label="用户名"
+                />
                 <div class="form-row single">
                     <input
                         ref="inputEl"

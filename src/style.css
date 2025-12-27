@@ -81,15 +81,20 @@ a:hover {
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  columns: 1;
+  column-gap: 16px;
   padding: 0;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    columns: 2;
+  }
 }
 
 @media (min-width: 1040px) {
   .grid {
-    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    columns: 3;
   }
 }
 
@@ -99,12 +104,13 @@ a:hover {
   border-radius: var(--radius);
   padding: 16px;
   width: 100%;
-  margin: 0;
+  margin: 0 0 16px;
   box-sizing: border-box;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  break-inside: avoid;
 }
 
 .card:hover {
@@ -431,7 +437,7 @@ button:disabled {
   }
 
   .grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    columns: 2;
   }
 
   .controls {
@@ -467,9 +473,7 @@ button:disabled {
 
 @media (max-width: 480px) {
   .grid {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 0;
+    columns: 1;
   }
 
   .card {
