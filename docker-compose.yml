@@ -12,7 +12,13 @@ services:
       - ./:/workspace
       - ${HOST_STATIC_ROOT:-/WWW_ROOT/static}:/host_static
     command: >
-      sh -c "pnpm install --prefer-frozen-lockfile || pnpm install && pnpm build && rsync -a --delete --exclude 'pages/' --exclude '.user.ini' dist/ /host_static/"
+      sh -c "pnpm install --prefer-frozen-lockfile || pnpm install && pnpm build && rsync -a --delete \
+      --include '/index.html' \
+      --include '/assets/***' \
+      --include '/data/***' \
+      --exclude '*.html' \
+      --exclude '.user.ini' \
+      dist/ /host_static/"
 
   upload:
     build:

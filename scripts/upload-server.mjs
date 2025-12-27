@@ -24,9 +24,11 @@ if (!fs.existsSync(HOST_STATIC_ROOT)) {
     HOST_STATIC_ROOT = process.env.HOST_STATIC_ROOT || localFallback;
 }
 
-// Store uploads directly under HOST_STATIC_ROOT by default (no /pages subdir)
+// 默认直接放在静态根目录，方便直接通过根路径访问
 const PAGES_DIR = process.env.PAGES_DIR || HOST_STATIC_ROOT;
 const HOST_DATA_FILE = path.join(HOST_STATIC_ROOT, 'data', 'pages.json');
+const PROJECT_DATA_FILE = path.join(PROJECT_ROOT, 'data', 'pages.json');
+const PUBLIC_DATA_FILE = path.join(PROJECT_ROOT, 'public', 'data', 'pages.json');
 
 // Ensure pages directory exists; if creation fails (permissions or invalid path),
 // fallback to a local development directory so server can run on dev machine.
@@ -73,18 +75,33 @@ function runBuild() {
     return { ok: true, skipped: false };
 }
 
-function writePagesJson(targetUrl, providedTitle, providedDescription, providedImage, htmlPathVar, finalName) {
-    const dataFile = path.join(PROJECT_ROOT, 'data', 'pages.json');
-    const publicDataFile = path.join(PROJECT_ROOT, 'public', 'data', 'pages.json');
-
+function loadPages() {
     let pages = [];
     try {
-        const raw = fs.readFileSync(dataFile, 'utf8');
+        const raw = fs.readFileSync(PROJECT_DATA_FILE, 'utf8');
         pages = JSON.parse(raw);
         if (!Array.isArray(pages)) pages = [];
     } catch (e) {
         pages = [];
     }
+    return pages;
+}
+
+function writePagesFiles(pages) {
+    fs.mkdirSync(path.dirname(PROJECT_DATA_FILE), { recursive: true });
+    fs.writeFileSync(PROJECT_DATA_FILE, JSON.stringify(pages, null, 2));
+    fs.mkdirSync(path.dirname(PUBLIC_DATA_FILE), { recursive: true });
+    fs.writeFileSync(PUBLIC_DATA_FILE, JSON.stringify(pages, null, 2));
+    try {
+        fs.mkdirSync(path.dirname(HOST_DATA_FILE), { recursive: true });
+        fs.writeFileSync(HOST_DATA_FILE, JSON.stringify(pages, null, 2));
+    } catch (err) {
+        console.warn(`[pages] write host data failed: ${err.message}`);
+    }
+}
+
+function writePagesJson(targetUrl, providedTitle, providedDescription, providedImage, htmlPathVar, finalName) {
+    let pages = loadPages();
 
     if (htmlPathVar && finalName) {
         const stat = fs.statSync(htmlPathVar);
@@ -110,20 +127,30 @@ function writePagesJson(targetUrl, providedTitle, providedDescription, providedI
     pages.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     // write project data files
-    fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-    fs.writeFileSync(dataFile, JSON.stringify(pages, null, 2));
-    fs.mkdirSync(path.dirname(publicDataFile), { recursive: true });
-    fs.writeFileSync(publicDataFile, JSON.stringify(pages, null, 2));
-
-    // also write host static data to reflect immediately without rebuild
-    try {
-        fs.mkdirSync(path.dirname(HOST_DATA_FILE), { recursive: true });
-        fs.writeFileSync(HOST_DATA_FILE, JSON.stringify(pages, null, 2));
-    } catch (err) {
-        console.warn(`[pages] write host data failed: ${err.message}`);
-    }
+    writePagesFiles(pages);
 
     return pages.length;
+}
+
+function updatePageMeta(targetUrl, patch = {}) {
+    let pages = loadPages();
+    const idx = pages.findIndex((p) => p.url === targetUrl);
+    if (idx < 0) {
+        throw new Error('未找到对应页面');
+    }
+
+    const current = pages[idx];
+    const updated = {
+        ...current,
+        title: patch.title !== undefined ? String(patch.title || '') : current.title,
+        description: patch.description !== undefined ? String(patch.description || '') : current.description,
+        image: patch.image !== undefined ? String(patch.image || '') : current.image
+    };
+
+    pages[idx] = updated;
+    pages.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    writePagesFiles(pages);
+    return updated;
 }
 
 const storage = multer.diskStorage({
@@ -301,7 +328,24 @@ app.post('/api/delete', checkAuth, (req, res) => {
     return res.json({ ok: true, url: targetUrl, buildOk: true });
 });
 
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
+app.post('/api/edit', checkAuth, (req, res) => {
+    const targetUrl = (req.body && req.body.url) ? String(req.body.url).trim() : '';
+    if (!targetUrl) return res.status(400).send('缺少 url');
+
+    const title = req.body?.title ?? '';
+    const description = req.body?.description ?? '';
+    const image = req.body?.image ?? '';
+
+    try {
+        const updated = updatePageMeta(targetUrl, { title, description, image });
+        return res.json({ ok: true, page: updated });
+    } catch (err) {
+        const message = err?.message || '更新失败';
+        return res.status(400).send(message);
+    }
+});
+
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/rebuild', checkAuth, (_req, res) => {
     const buildResult = runBuild();

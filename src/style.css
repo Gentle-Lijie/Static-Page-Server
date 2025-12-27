@@ -2,12 +2,42 @@
 
 :root {
   color-scheme: light;
+  --radius: 12px;
   --bg: #f7f7fb;
   --card: #fff;
   --text: #1f2933;
   --muted: #4b5563;
   --border: #e5e7eb;
   --accent: #2563eb;
+  --badge-bg: #eff6ff;
+  --badge-text: #1d4ed8;
+}
+
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f172a;
+  --card: #111827;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #1f2937;
+  --accent: #3b82f6;
+  --badge-bg: #1e293b;
+  --badge-text: #bfdbfe;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0f172a;
+    --card: #111827;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --border: #1f2937;
+    --accent: #3b82f6;
+    --badge-bg: #1e293b;
+    --badge-text: #bfdbfe;
+  }
 }
 
 * {
@@ -51,24 +81,24 @@ a:hover {
 }
 
 .grid {
-  /* Masonry via fixed column count */
-  column-count: 3;
-  column-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
   padding: 0;
 }
 
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px;
-  display: inline-block; /* needed for column layout */
   width: 100%;
-  margin: 0 0 16px;
-  vertical-align: top;
+  margin: 0;
   box-sizing: border-box;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .card:hover {
@@ -78,11 +108,13 @@ a:hover {
 
 .card img {
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  object-fit: cover;
-  max-height: 180px;
+  object-fit: contain;
+  height: auto;
+  max-height: 320px;
   display: block;
+  background: var(--card);
 }
 
 /* allow cards to have variable height */
@@ -101,16 +133,29 @@ a:hover {
 .controls {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
   gap: 12px;
-  width: fit-content;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.controls-search {
+  flex: 1 1 auto;
+  width: 220px;
+}
+
+.controls-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .json-view {
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--card);
+  color: var(--text);
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
@@ -134,11 +179,24 @@ input,
 select,
 button {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 12px;
   font-size: 14px;
   font-family: inherit;
-  background: #fff;
+  background: var(--card);
+  color: var(--text);
+}
+
+textarea {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
 }
 
 button {
@@ -166,10 +224,42 @@ button.ghost.danger {
 }
 
 button.icon {
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: 8px;
+  border-radius: var(--radius);
   line-height: 1;
-  min-width: 0;
+  min-width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.icon-only {
+  padding: 8px;
+  min-width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.icon-only .icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  color: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 button.ghost {
@@ -187,9 +277,9 @@ button:disabled {
   display: inline-block;
   margin: 4px 4px;
   padding: 4px 8px;
-  border-radius: 20px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-radius: var(--radius);
+  background: var(--badge-bg);
+  color: var(--badge-text);
   font-weight: 600;
   font-size: 12px;
 }
@@ -228,6 +318,11 @@ button:disabled {
   color: var(--muted);
   line-height: 1.5;
   font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* truncate long URLs */
@@ -240,9 +335,9 @@ button:disabled {
 }
 
 .upload-form {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -261,8 +356,8 @@ button:disabled {
 }
 
 .modal {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--card);
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   padding: 20px;
   max-width: 720px;
@@ -270,11 +365,16 @@ button:disabled {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
 }
 
+.modal.small {
+  max-width: 440px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin: auto;
+  /* margin-bottom: 12px; */
 }
 
 .form-row {
@@ -301,16 +401,68 @@ button:disabled {
   margin: 0 0 12px;
 }
 
-@media (max-width: 640px) {
+.icon-edit {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+@media (max-width: 768px) {
   .header {
     height: fit-content;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+  }
+
+  .header h1,
+  .header .meta {
+    width: 100%;
+    text-align: center;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .controls-search {
+    width: 100%;
+  }
+
+  .controls-search input[type="search"] {
+    width: 100%;
+  }
+
+  .controls-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .controls-actions > * {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .grid {
-    column-count: 2;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0;
+  }
+
+  .card {
+    max-width: 520px;
+    width: 100%;
+    margin-bottom: 12px;
   }
 }

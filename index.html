@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Pages | lijie.space</title>
+    <script>
+      // 强制禁用本页缓存 & 清理可能残留的 SW 缓存
+      if ('caches' in window) {
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((reg) => reg.unregister()));
+      }
+    </script>
+    <title>Pages | 丽姐的静态页面部署平台</title>
+    <meta name="description" content="一个用于托管自己写的静态页面的入口" />
+    <meta property="og:title" content="丽姐的静态页面部署平台" />
+    <meta property="og:description" content="一个用于托管自己写的静态页面的入口" />
   </head>
   <body>
     <div id="app"></div>
