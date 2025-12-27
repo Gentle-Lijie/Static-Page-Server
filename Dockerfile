@@ -1,9 +1,14 @@
 FROM node:lts-alpine AS base
 
 # Use corepack to activate pnpm; avoid npm -g install to prevent pnpx EEXIST in base image
-RUN corepack enable \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+    && corepack enable \
     && corepack prepare pnpm@latest --activate \
-    && apk add --no-cache git rsync
+    && apk add --no-cache git rsync docker-cli docker-cli-compose
+
+# Set pnpm registry to domestic mirror
+ENV PNPM_REGISTRY=https://registry.npmmirror.com
+RUN pnpm config set registry https://registry.npmmirror.com
 
 WORKDIR /workspace
 

@@ -13,6 +13,8 @@
                     <option value="created_at">按时间（新→旧）</option>
                     <option value="title">按标题（A→Z）</option>
                 </select>
+                <button class="ghost" @click="openPagesModal">查看 pages.json</button>
+                <button class="ghost" @click="triggerRebuild" :disabled="rebuilding">{{ rebuilding ? '构建中...' : '手动构建' }}</button>
                 <button class="primary" @click="openModal">上传</button>
             </div>
         </header>
@@ -59,6 +61,16 @@
         <section>
             <div class="grid">
                 <PageCard v-for="page in filteredPages" :key="page.url" :page="page" @delete="openDeleteModal" />
+            </div>
+        </section>
+
+        <section v-if="showPagesModal" class="modal-backdrop" @click.self="closePagesModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>当前 pages.json</h2>
+                    <button class="ghost" @click="closePagesModal" aria-label="关闭">✕</button>
+                </div>
+                <pre class="json-view" style="max-height:60vh; overflow:auto;">{{ pagesJson }}</pre>
             </div>
         </section>
 
@@ -110,6 +122,9 @@
     const deletePassword = ref('');
     const deleteMessage = ref('');
     const deleteLoading = ref(false);
+    const rebuilding = ref(false);
+    const pagesJson = ref('');
+    const showPagesModal = ref(false);
 
     const filteredPages = computed(() => {
         const keyword = search.value.trim().toLowerCase();
@@ -169,6 +184,26 @@
 
     function closeDeleteModal() {
         showDeleteModal.value = false;
+    }
+
+    function openPagesModal() {
+        fetchPagesJson();
+        showPagesModal.value = true;
+    }
+
+    function closePagesModal() {
+        showPagesModal.value = false;
+    }
+
+    async function fetchPagesJson() {
+        try {
+            const res = await fetch('/data/pages.json?_=' + Date.now());
+            if (!res.ok) throw new Error('加载失败');
+            const text = await res.text();
+            pagesJson.value = text;
+        } catch (e) {
+            pagesJson.value = '加载失败: ' + (e?.message || '');
+        }
     }
 
     function previewImage() {
@@ -237,6 +272,7 @@
                 throw new Error(await res.text());
             }
 
+            const body = await res.json();
             deleteMessage.value = '删除成功，正在刷新列表...';
             await fetchPages();
             closeDeleteModal();
@@ -244,6 +280,33 @@
             deleteMessage.value = err.message || '删除失败';
         } finally {
             deleteLoading.value = false;
+        }
+    }
+
+    async function triggerRebuild() {
+        rebuilding.value = true;
+        try {
+            const token = window.prompt('请输入构建密码（同上传/删除密码）') || '';
+            if (!token.trim()) throw new Error('未输入密码');
+            const rebuildUrl = API_BASE ? `${API_BASE.replace(/\/$/, '')}/api/rebuild` : '/api/rebuild';
+            const res = await fetch(rebuildUrl, {
+                method: 'POST',
+                headers: {
+                    'x-upload-token': token.trim()
+                }
+            });
+            const body = await res.json();
+            if (body.ok) {
+                await fetchPages();
+                await fetchPagesJson();
+                alert(body.skipped ? '已跳过构建（SKIP_BUILD）' : '构建完成');
+            } else {
+                throw new Error(body.error || '构建失败');
+            }
+        } catch (err) {
+            alert('构建失败: ' + (err?.message || ''));
+        } finally {
+            rebuilding.value = false;
         }
     }
 
