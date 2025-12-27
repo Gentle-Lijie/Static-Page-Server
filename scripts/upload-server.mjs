@@ -70,19 +70,18 @@ function checkAuth(req, res, next) {
 }
 
 app.post('/api/upload', checkAuth, upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).send('缺少文件');
-
     // allow client to provide slug/title/description
     const providedSlug = (req.body && req.body.slug) ? String(req.body.slug).trim() : '';
     const providedTitle = (req.body && req.body.title) ? String(req.body.title).trim() : '';
     const providedDescription = (req.body && req.body.description) ? String(req.body.description).trim() : '';
     const providedImage = (req.body && req.body.image) ? String(req.body.image).trim() : '';
 
-    const origPath = req.file.path;
-    console.log(`[upload] received ${origPath}`);
+    // optional file upload: allow pre-uploaded file via scp, using slug to locate file
+    const origPath = req.file ? req.file.path : null;
+    if (origPath) console.log(`[upload] received ${origPath}`);
 
     // sanitize and rename file according to slug if provided
-    let finalName = path.basename(origPath);
+    let finalName = origPath ? path.basename(origPath) : '';
     let htmlPathVar = origPath;
 
     function makeSafeFilename(inputSlug, originalName) {
@@ -102,7 +101,7 @@ app.post('/api/upload', checkAuth, upload.single('file'), (req, res) => {
         const base = String(originalName || '').replace(/\.html$/i, '');
         // try ascii-friendly slug
         let ascii = base.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-        ascii = ascii.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^[-]+|[-]+$/g, '');
+        ascii = ascii.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^[\-]+|[\-]+$/g, '');
         if (ascii) return ensureHtml(ascii.toLowerCase());
 
         // fallback to timestamp-based name
@@ -112,23 +111,33 @@ app.post('/api/upload', checkAuth, upload.single('file'), (req, res) => {
     const desiredName = makeSafeFilename(providedSlug, finalName);
     const destBase = path.join(PAGES_DIR_FINAL, desiredName);
     let dest = destBase;
-    // avoid collisions by appending counter
-    let counter = 1;
-    while (fs.existsSync(dest)) {
-        const nameNoExt = desiredName.replace(/\.html$/i, '');
-        dest = path.join(PAGES_DIR_FINAL, `${nameNoExt}-${counter}.html`);
-        counter += 1;
-    }
 
-    try {
-        if (dest !== origPath) {
-            fs.renameSync(origPath, dest);
-            console.log(`[upload] renamed ${origPath} -> ${dest}`);
+    // If we have an uploaded file, avoid collisions by appending counter
+    if (origPath) {
+        let counter = 1;
+        while (fs.existsSync(dest)) {
+            const nameNoExt = desiredName.replace(/\.html$/i, '');
+            dest = path.join(PAGES_DIR_FINAL, `${nameNoExt}-${counter}.html`);
+            counter += 1;
+        }
+
+        try {
+            if (dest !== origPath) {
+                fs.renameSync(origPath, dest);
+                console.log(`[upload] renamed ${origPath} -> ${dest}`);
+            }
+            finalName = path.basename(dest);
+            htmlPathVar = dest;
+        } catch (err) {
+            console.warn(`[upload] rename failed: ${err.message}`);
+        }
+    } else {
+        // no uploaded file: expect file already exists via scp at destBase
+        if (!fs.existsSync(dest)) {
+            return res.status(400).send('缺少文件；请先通过 scp 上传并提供 slug 对应的文件名');
         }
         finalName = path.basename(dest);
         htmlPathVar = dest;
-    } catch (err) {
-        console.warn(`[upload] rename failed: ${err.message}`);
     }
 
     // create or update entry in data/pages.json using provided fields (no HTML parsing)
