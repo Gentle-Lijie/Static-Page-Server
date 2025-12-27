@@ -1,0 +1,155 @@
+# Static-Page-Server 技术说明
+
+[toc]
+
+# 项目概览
+
+- 基于 **Vue 3 + Vite** 的静态页面索引前端，展示 `data/pages.json`，支持搜索、排序、编辑、删除与触发重建。
+- 基于 **Express + Multer** 的上传服务（`scripts/upload-server.mjs`），提供上传/本地登记/删除/编辑/重建等接口，支持密码鉴权与 Docker 内构建。
+- **Docker 多服务**：`builder` 负责前端打包并同步到宿主静态目录；`upload` 提供上传 API 并可在容器内触发 `builder`。
+- **AI 摘要**：前端可调用 OpenAI 兼容接口生成摘要（需配置 `VITE_OPENAI_API_KEY` 等）。
+
+# 目录与角色
+
+*== 关键目录速览 ==*
+| 路径 | 职责 |
+| --- | --- |
+| `src/` | 前端页面与组件（`App.vue`、`PageCard.vue`、`EditModal.vue`、`AuthModal.vue`） |
+| `scripts/upload-server.mjs` | Express 上传/删除/编辑/重建 API，写入 `data/pages.json`、`public/data/pages.json`，并可触发 Docker 构建 |
+| `scripts/rebuild.sh` | 简化的手动构建脚本，调用 docker compose builder |
+| `data/pages.json` | 线上/本地共用的页面索引源，构建时同步到 `public/data/pages.json` 与宿主静态目录 |
+| `docker-compose.yml` | 定义 `builder` 与 `upload` 服务的挂载、端口、环境变量 |
+| `Dockerfile` | multi-stage：基础镜像 -> 依赖层 -> upload 运行层 |
+
+# 前端特性
+
+- 列表：从 `/data/pages.json` 拉取，支持搜索（标题/描述）、按时间或标题排序。
+- 上传：表单 + 密码弹窗，POST `/api/upload`，字段包含 slug/title/description/image 与 HTML 文件。
+- 编辑：弹窗内可改标题/摘要/首图，POST `/api/edit`。
+- 删除：确认弹窗，POST `/api/delete`。
+- 构建：手动按钮 POST `/api/rebuild`，后端可跳过构建（`SKIP_BUILD=1`）。
+- 主题：浅色 / 深色 / 自动，保存在 localStorage，应用到 `:root[data-theme]`。
+- AI 摘要：点击“AI 生成摘要”会抓取页面正文文本，调用 OpenAI Chat Completions 生成描述，支持语言切换（auto/zh/en）。
+
+# 后端（upload server）概述
+
+- 框架：Express + Multer，`basic-auth` 支持 Header/Basic 两种密码传递，校验 `x-upload-token` 或 Basic auth 密码。
+- 文件落盘：目标目录由 `PAGES_DIR`（默认宿主静态根）决定，文件名基于 slug 归一化；如冲突自动追加计数后缀。
+- 数据写入：`writePagesJson` 同步到项目内 `data/pages.json`、`public/data/pages.json`，并尝试写宿主静态目录 `data/pages.json`。
+- 构建触发：`/api/rebuild` 调用 `docker compose run --rm builder`，可通过 `SKIP_BUILD` 跳过。
+- 本地登记：`/api/upload-local` 支持先 scp 再登记的模式（不经 HTTP 上传）。
+
+# 接口与数据约定
+
+*== API 列表 ==*
+| 方法 | 路径 | 功能 | 认证 |
+| --- | --- | --- | --- |
+| POST | `/api/upload` | 上传 HTML，写入 pages.json | `x-upload-token` 或 Basic 密码 |
+| POST | `/api/upload-local` | 已有 HTML（scp）登记到 pages.json | 同上 |
+| POST | `/api/delete` | 删除 HTML + 从 pages.json 移除 | 同上 |
+| POST | `/api/edit` | 更新标题/描述/首图 | 同上 |
+| POST | `/api/rebuild` | 触发 builder 构建 | 同上 |
+| GET | `/api/health` | 健康检查 | 无 |
+
+*== pages.json 结构 ==*
+| 字段 | 说明 |
+| --- | --- |
+| `url` | 线上可访问的完整 URL |
+| `title` | 卡片标题 |
+| `description` | 摘要文本（AI 或人工） |
+| `image` | 首图 URL，可为空 |
+| `created_at` | ISO 时间戳，按此排序 |
+
+# 环境变量
+
+*== 运行时环境变量速查 ==*
+| 变量 | 默认值 | 作用 |
+| --- | --- | --- |
+| `UPLOAD_PASSWORD` | `change-me` | 上传、编辑、删除、重建的鉴权密码 |
+| `UPLOAD_PORT` | `8787` | upload 服务监听端口 |
+| `HOST_STATIC_ROOT` | `/WWW_ROOT/static` | 宿主静态根目录（builder rsync 目标） |
+| `PAGES_DIR` | 同上 | HTML 写入目录；默认落在静态根，方便直接以根路径访问 |
+| `BASE_URL` | `https://pages.lijie.space/` | 生成页面 URL 的基准 |
+| `HOST_PROJECT_ROOT` | `/root/Static-Page-Server` | 宿主仓库路径，触发 docker compose 的工作目录 |
+| `SKIP_BUILD` | 空 | `1/true/yes` 时跳过自动构建 |
+| `VITE_OPENAI_API_KEY` | 空 | 前端 AI 摘要所需 Key（浏览器侧调用，注意暴露风险） |
+| `VITE_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI 兼容端点 |
+| `VITE_OPENAI_MODEL` | `gpt-4o-mini` | Chat 模型名 |
+
+# 开发与运行
+
+tab 本地开发
+
+_~Ye!~_ 适用于快速调试、查看前端交互。
+
+*== 本地开发启动 ==*
+```bash
+pnpm install
+pnpm dev
+```
+
+- Vite 开发服务器运行在 `5173`，已配置 `/api` 代理到 `http://localhost:8787`。
+- 需同时启动上传服务：
+
+*== 启动上传服务 ==*
+```bash
+pnpm upload:serve
+```
+
+tab 容器化（与线上一致）
+
+_~Gn!~_ 用于与线上一致的依赖与目录挂载，便于复现问题。
+
+*== Docker 一键构建/服务（推荐与线上一致） ==*
+```bash
+# 构建并同步静态资源到宿主静态目录
+HOST_STATIC_ROOT=/WWW_ROOT/static docker compose run --rm builder
+
+# 启动上传服务（含 API）
+UPLOAD_PASSWORD=change-me docker compose up upload
+```
+
+tab 只读预览
+
+_~Bu!~_ 仅需查看已构建产物时，可直接启动静态文件托管（如 Nginx 或本地 `vite preview`）。
+
+*== 预览产物 ==*
+```bash
+pnpm build
+pnpm preview --host
+```
+
+
+# 构建与发布流
+
+1) 前端从 `data/pages.json` 读取卡片；上传/编辑/删除都会同步三份 pages.json（仓库、public、宿主静态目录）。
+2) 触发 `/api/rebuild` 或执行 `docker compose run builder`：
+   - 安装依赖 → `pnpm build` → 将 `dist/index.html`、`dist/assets/**`、`dist/data/**` rsync 到宿主静态目录（默认 `/WWW_ROOT/static`）。
+3) 访问：若 HTML 直接放在静态根，URL 为 `BASE_URL + filename`；若设定 pages 子目录，URL 为 `BASE_URL/pages/<filename>`。
+
+# AI 摘要功能
+
+_~Ye!~_ 入口：编辑弹窗的“AI 生成摘要”。
+
+- 流程：抓取目标 URL → DOMParser 提取正文文本（截断 6000 字符）→ 调用 Chat Completions → 回填描述。
+- 语言：`auto` 会按正文语言自适应；可手动切换 `zh` / `en`。
+- 安全：前端调用会暴露 Key，如需管控，请改为后端代理或局域网使用。
+
+# 安全与最佳实践
+
+_~Rd!~_ 密码：必须设置强 `UPLOAD_PASSWORD`，并通过 HTTPS 访问上传端点。
+
+_~Og!~_ 边界：上传服务建议放在内网，仅静态站点暴露外网。
+
+_~Bu!~_ 构建：本地或 CI 可设 `SKIP_BUILD=1` 跳过 docker，提速迭代；正式环境应开启构建并使用固定镜像版本。
+
+_~Pu!~_ 文件：slug 中非 `[A-Za-z0-9._-]` 会被替换为 `-`，并强制 `.html` 后缀；冲突时自动追加 `-1/-2...`。
+
+# 常见操作备忘
+
+- **添加页面（HTTP 上传）**：填写 slug/title/description/image，上传 HTML → 输入密码 → 成功后刷新列表 → 如需同步线上，点击“手动构建”。
+- **添加页面（scp + 登记）**：将 HTML 放入 `PAGES_DIR` → POST `/api/upload-local` 携带 slug/title/description/image → 手动构建。
+- **修改元数据**：在卡片点击编辑，或调用 `/api/edit`。
+- **删除页面**：卡片删除或 `/api/delete`，操作不可恢复。
+
+

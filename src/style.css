@@ -87,6 +87,12 @@ a:hover {
   padding: 0;
 }
 
+@media (min-width: 1040px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+  }
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -133,14 +139,16 @@ a:hover {
 .controls {
   align-items: center;
   display: flex;
-  gap: 12px;
-  width: 100%;
+  gap: 8px;
+  width: auto;
   flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .controls-search {
-  flex: 1 1 auto;
-  width: 220px;
+  /* flex: 1 1 auto; */
+  width: 200px;
 }
 
 .controls-actions {
@@ -250,6 +258,7 @@ button.icon-only {
   display: block;
   color: inherit;
 }
+
 
 .sr-only {
   position: absolute;
@@ -429,6 +438,9 @@ button:disabled {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
   }
 
   .controls-search {
