@@ -478,6 +478,8 @@
         aiSummaryLoading.value = true;
         editMessage.value = '';
         try {
+            const token = await requestAuth('生成摘要');
+            if (!token) throw new Error('未输入密码');
             if (!form.url) throw new Error('缺少页面链接');
             if (!OPENAI_KEY) throw new Error('缺少 OpenAI API Key，请在 .env 设置 VITE_OPENAI_API_KEY');
 
@@ -494,6 +496,7 @@
             editTarget.value = { ...(editTarget.value || {}), description: summary };
             editMessage.value = 'AI 摘要生成完成，可直接保存。';
         } catch (err) {
+            if (err?.message === '用户取消鉴权') return;
             editMessage.value = err?.message || '生成摘要失败';
         } finally {
             aiSummaryLoading.value = false;
